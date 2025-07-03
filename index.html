@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlowTrack – Cash Flow Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Predict your business's cash flow in minutes</h1>
+    <p>Upload your bank CSV and simulate your cash runway instantly.</p>
+    <button class="cta-button" onclick="joinWaitlist()">Join the Free Beta</button>
+  </header>
+
+  <section>
+    <h2>Why FlowTrack?</h2>
+    <ul>
+      <li>😵 No clue how long your cash will last?</li>
+      <li>📉 Client payments delayed again?</li>
+      <li>🧾 Monthly expenses creeping up?</li>
+      <li>😐 Can't afford a CFO?</li>
+    </ul>
+  </section>
+
+  <section class="uploader">
+    <h2>Upload CSV</h2>
+    <p>Expected format: <code>date,amount</code> (YYYY-MM-DD)</p>
+    <input type="file" id="csvFile" accept=".csv" />
+    <pre id="csvPreview">No file selected.</pre>
+    <div id="fileError" style="color: red; display: none; font-weight: bold;"></div>
+  </section>
+
+  <section class="adjustments">
+    <h2>What-If Adjustments by Category</h2>
+    <div id="categorySliders"></div>
+    <h3>Revenue Adjustments</h3>
+    <div id="revenueSliders" class="slider-group"></div>
+
+    <h3>Expense Adjustments</h3>
+    <div id="expenseSliders" class="slider-group"></div>
+
+    <h3>📅 Time-Phased Events</h3>
+    <div id="eventForm" class="event-form">
+      <input type="date" id="eventDate" required />
+      <input type="number" id="eventAmount" placeholder="Amount" required />
+      <input type="text" id="eventNote" placeholder="Description (e.g. Investment)" required />
+      <button id="addEventBtn">Add Event</button>
+    </div>
+
+    <ul id="eventList" class="event-list"></ul>
+
+  </section>
+
+
+
+  <section class="forecast-chart">
+    <h2>Cash Flow Forecast</h2>
+    <canvas id="forecastChart" width="600" height="300"></canvas>
+    <div id="runwayEstimate" class="runway"></div>
+    <button id="downloadCsvBtn" class="cta-button" style="margin-top: 1rem;">
+        📥 Download Forecast CSV
+    </button>
+    <button id="saveSessionBtn" class="cta-button" style="margin-top: 1rem;">
+    💾 Save Forecast Session
+    </button>
+    <button id="runAiForecastBtn" class="cta-button" style="margin-top: 1rem;">
+    🤖 Run AI Forecast
+    </button>
+
+  </section>
+
+  <footer style="text-align:center; padding:2rem; font-size:0.9rem; color:#6b7280;">
+    Built by Alessio • FlowTrack • 🚀 Beta
+  </footer>
+
+  <script src="main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+
+</body>
+</html>
