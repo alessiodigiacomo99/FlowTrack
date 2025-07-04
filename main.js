@@ -193,11 +193,9 @@ class CSVProcessor {
     const row = document.createElement("div");
     row.className = "adjustment-row";
     row.innerHTML = `
-      <input type="text" 
-             class="rename-input" 
+      <div class="rename-input" 
              data-original="${category}" 
-             value="${category}" 
-             placeholder="Category name" />
+             value="${category}" >${category}</div>
       <input type="number" 
              value="0" 
              min="-100" 
@@ -723,9 +721,8 @@ class CSVProcessor {
   }
   
   addAiForecastToChart(aiMappedData) {
-    const aiForecast = this.generateForecast(aiMappedData);
-    const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(aiForecast);
-    const forecast = [...this.originalForecast, ...aiForecast];
+    const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(this.rawData);
+    const forecast = [...this.originalForecast, ...aiMappedData];
 
     this.renderChartWithGroups(forecast, revenueForecast, expenseForecast);
   }
@@ -766,9 +763,9 @@ class CSVProcessor {
   applyAdjustments() {
     if (!this.rawData.length) return;
 
-    const renameMap = this.buildRenameMap();
-    const adjustmentMap = this.buildAdjustmentMap(renameMap);
-    const adjustedData = this.processAdjustedData(renameMap, adjustmentMap);
+    //const renameMap = this.buildRenameMap();
+    const adjustmentMap = this.buildAdjustmentMap();
+    const adjustedData = this.processAdjustedData(adjustmentMap);
     
     const adjustedForecast = this.generateForecast(adjustedData);
     const forecast = [...this.originalForecast, ...adjustedForecast];
@@ -781,35 +778,23 @@ class CSVProcessor {
     );
   }
 
-  buildRenameMap() {
-    const renames = {};
-    document.querySelectorAll(".rename-input").forEach(input => {
-      const original = input.getAttribute("data-original");
-      const renamed = input.value.trim();
-      renames[original] = renamed;
-    });
-    return renames;
-  }
-
-  buildAdjustmentMap(renameMap) {
+  buildAdjustmentMap() {
     const adjustments = {};
     document.querySelectorAll("input[data-category]").forEach(input => {
-      const original = input.getAttribute("data-category");
-      const renamed = renameMap[original];
+      const category = input.getAttribute("data-category");
       const adjustment = parseFloat(input.value) || 0;
-      adjustments[renamed] = adjustment;
+      adjustments[category] = adjustment;
     });
     return adjustments;
   }
 
-  processAdjustedData(renameMap, adjustmentMap) {
+  processAdjustedData(map) {
     return this.rawData.map(({ date, amount, category }) => {
-      const renamed = renameMap[category] || category;
-      const percent = adjustmentMap[renamed] || 0;
+      const percent = map[category] || 0;
       const adjustedAmount = amount >= 0
         ? amount * (1 + percent / 100)
         : amount * (1 - percent / 100);
-      return { date, amount: adjustedAmount, renamedCategory: renamed };
+      return { date, amount: adjustedAmount, renamedCategory: category };
     });
   }
 
