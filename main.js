@@ -88,7 +88,8 @@ class CSVProcessor {
       this.setupEventListeners();
       this.updatePreview(text);
       this.originalForecast = this.generateForecast(this.rawData);
-      this.renderChartWithGroups(this.originalForecast, [], []);
+      const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(this.rawData);
+      this.renderChartWithGroups(this.originalForecast, revenueForecast, expenseForecast);
       this.hideError();
 
     } catch (error) {
@@ -266,7 +267,7 @@ class CSVProcessor {
     
     return sortedDates.map(date => {
       cumulative += totals[date];
-      return { date, balance: cumulative };
+      return { date, amount: cumulative };
     });
   }
 
@@ -316,7 +317,7 @@ class CSVProcessor {
     return [
       {
         label: "Forecast",
-        data: forecast.map(d => d.balance),
+        data: forecast.map(d => d.amount),
         borderColor: "#2563eb",
         backgroundColor: "#2563eb22",
         fill: false,
@@ -816,14 +817,14 @@ class CSVProcessor {
     const dailyTotals = this.aggregateDailyTotals(adjustedData);
     const dates = Object.keys(dailyTotals).sort();
     
-    const { revenueHistorical, expenseHistorical } = this.calculateHistoricalCumulatives(dates, dailyTotals);
-    
+    const { revenueDaily, expenseDaily } = this.calculateHistoricalDailies(dates, dailyTotals);
+
     return {
-      revenueForecast: revenueHistorical.map(d => d.value),
-      expenseForecast: expenseHistorical.map(d => d.value),
-      allDates: dates
+      revenueForecast: revenueDaily.map(d => d.value),
+      expenseForecast: expenseDaily.map(d => d.value)
     };
   }
+
 
   aggregateDailyTotals(adjustedData) {
     const dailyTotals = {};
@@ -840,20 +841,18 @@ class CSVProcessor {
     return dailyTotals;
   }
 
-  calculateHistoricalCumulatives(dates, dailyTotals) {
-    let cumRevenue = 0, cumExpense = 0;
-    const revenueHistorical = [];
-    const expenseHistorical = [];
+  calculateHistoricalDailies(dates, dailyTotals) {
+    const revenueDaily = [];
+    const expenseDaily = [];
 
     dates.forEach(date => {
-      cumRevenue += dailyTotals[date].revenue;
-      cumExpense += dailyTotals[date].expense;
-      revenueHistorical.push({ date, value: cumRevenue });
-      expenseHistorical.push({ date, value: cumExpense });
+      revenueDaily.push({ date, value: dailyTotals[date].revenue });
+      expenseDaily.push({ date, value: dailyTotals[date].expense });
     });
 
-    return { revenueHistorical, expenseHistorical };
+    return { revenueDaily, expenseDaily };
   }
+
 
   showError(message) {
     const errorElement = document.getElementById("fileError");
