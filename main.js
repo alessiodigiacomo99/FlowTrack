@@ -1,273 +1,354 @@
-let rawData = [], originalForecast = [], forecastChart;
-const fileError = document.getElementById("fileError");
-const runwayBox = document.getElementById("runwayEstimate");
-
 function joinWaitlist() {
     alert("Waitlist feature coming soon!");
 }
 
-function debounce(func, delay) {
-    let timeout;
-    return function () {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, arguments), delay);
-    };
-}
+// CSV File Handler - Refactored
+class CSVProcessor {
+  constructor() {
+    this.rawData = [];
+    this.categoryAdjustments = {};
+    this.categoryRenames = {};
+    this.originalForecast = null;
+    this.forecastChart = null;
+    this.timePhasedEvents = [];
+    this.apiBaseUrl = "http://localhost:8000";
+    this.requiredColumns = ['date', 'amount', 'category'];
+    
+    this.initializeEventListeners();
+  }
 
-let categoryAdjustments = {}; // e.g. { 'salary': 0, 'ads': 10 }
-const sliderContainer = document.getElementById("categorySliders");
+  initializeEventListeners() {
+    const csvFileInput = document.getElementById("csvFile");
+    if (csvFileInput) {
+      csvFileInput.addEventListener("change", (event) => this.handleFileChange(event));
+    }
+    
+    this.initializeEventManagement();
+  }
 
-document.getElementById("csvFile").addEventListener("change", function (event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  initializeEventManagement() {
+    const addEventBtn = document.getElementById("addEventBtn");
+    if (addEventBtn) {
+      addEventBtn.addEventListener("click", () => this.handleAddEvent());
+    }
+    
+    this.initializeUtilityButtons();
+    
+    // Make deleteEvent globally accessible for inline onclick handlers
+    window.deleteEvent = (index) => this.deleteEvent(index);
+  }
 
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const text = e.target.result;
+  initializeUtilityButtons() {
+    const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+    const saveSessionBtn = document.getElementById("saveSessionBtn");
+    const runAiForecastBtn = document.getElementById("runAiForecastBtn");
+    
+    if (downloadCsvBtn) {
+      downloadCsvBtn.addEventListener("click", () => this.downloadForecastCsv());
+    }
+    
+    if (saveSessionBtn) {
+      saveSessionBtn.addEventListener("click", () => this.saveSession());
+    }
+    
+    if (runAiForecastBtn) {
+      runAiForecastBtn.addEventListener("click", () => this.runAiForecast());
+    }
+  }
+
+  handleFileChange(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => this.processFileContent(e.target.result);
+    reader.onerror = () => this.showError("Error reading file.");
+    reader.readAsText(file);
+  }
+
+  processFileContent(text) {
     try {
-      const lines = text.trim().split("\n");
-      const headers = lines[0].split(",");
-      const dateIndex = headers.indexOf("date");
-      const amountIndex = headers.indexOf("amount");
-      const categoryIndex = headers.indexOf("category");
-
-      if (dateIndex === -1 || amountIndex === -1 || categoryIndex === -1) {
-        fileError.style.display = "block";
-        fileError.textContent = "CSV must have 'date', 'amount' and 'category' columns.";
+      const parsedData = this.parseCSV(text);
+      const validationResult = this.validateData(parsedData);
+      
+      if (!validationResult.isValid) {
+        this.showError(validationResult.error);
         return;
       }
 
-      rawData = [];
-      for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(",");
-        const date = parts[dateIndex];
-        const amount = parseFloat(parts[amountIndex]);
-        const category = parts[categoryIndex].trim();
-        if (!isNaN(amount) && category) {
-          rawData.push({ date, amount, category });
-        }
-      }
-
-      if (rawData.length === 0) {
-        fileError.style.display = "block";
-        fileError.textContent = "No valid data found in CSV.";
+      this.rawData = this.extractValidRows(parsedData);
+      
+      if (this.rawData.length === 0) {
+        this.showError("No valid data found in CSV.");
         return;
       }
 
-      // Reset adjustments
-      categoryAdjustments = {};
+      this.resetAdjustments();
+      this.createCategorySliders();
+      this.setupEventListeners();
+      this.updatePreview(text);
+      this.originalForecast = this.generateForecast(this.rawData);
+      this.renderChartWithGroups(this.originalForecast, [], []);
+      this.hideError();
+
+    } catch (error) {
+      console.error("CSV Processing Error:", error);
+      this.showError("Error parsing CSV.");
+    }
+  }
+
+  parseCSV(text) {
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+    
+    return {
+      headers,
+      rows: lines.slice(1).map(line => line.split(","))
+    };
+  }
+
+  validateData({ headers }) {
+    const missingColumns = this.requiredColumns.filter(col => !headers.includes(col));
+    
+    if (missingColumns.length > 0) {
+      return {
+        isValid: false,
+        error: `CSV must have '${this.requiredColumns.join("', '")}' columns. Missing: ${missingColumns.join(", ")}`
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  extractValidRows({ headers, rows }) {
+    const dateIndex = headers.indexOf("date");
+    const amountIndex = headers.indexOf("amount");
+    const categoryIndex = headers.indexOf("category");
+    
+    return rows
+      .map(parts => ({
+        date: parts[dateIndex]?.trim(),
+        amount: parseFloat(parts[amountIndex]),
+        category: parts[categoryIndex]?.trim()
+      }))
+      .filter(row => 
+        row.date && 
+        !isNaN(row.amount) && 
+        row.category
+      );
+  }
+
+  resetAdjustments() {
+    this.categoryAdjustments = {};
+    this.categoryRenames = {};
+    
+    const sliderContainer = document.getElementById("sliderContainer");
+    if (sliderContainer) {
       sliderContainer.innerHTML = "";
+    }
+  }
 
-      const revenueContainer = document.getElementById("revenueSliders");
-      const expenseContainer = document.getElementById("expenseSliders");
-
-      categoryAdjustments = {};
-      categoryRenames = {}; // global if needed
+  createCategorySliders() {
+    const { revenueCategories, expenseCategories } = this.categorizeData();
+    
+    const revenueContainer = document.getElementById("revenueSliders");
+    const expenseContainer = document.getElementById("expenseSliders");
+    
+    if (revenueContainer && expenseContainer) {
       revenueContainer.innerHTML = "";
       expenseContainer.innerHTML = "";
-      const revenueCategories = new Set();
-      const expenseCategories = new Set();
-
-      rawData.forEach(({category, amount}) => {
-        if (amount >= 0) revenueCategories.add(category);
-        else expenseCategories.add(category);
-      });
-      function createSliderRow(category) {
-        categoryAdjustments[category] = 0;
-        categoryRenames[category] = category;
-
-        const row = document.createElement("div");
-        row.className = "adjustment-row";
-        row.innerHTML = `
-          <input type="text" class="rename-input" data-original="${category}" value="${category}" />
-          <input type="number" value="0" min="-100" max="500" data-category="${category}" />
-        `;
-        return row;
-      }
-
-      revenueCategories.forEach(cat => {
-        const row = createSliderRow(cat);
+      
+      revenueCategories.forEach(category => {
+        const row = this.createSliderRow(category);
         revenueContainer.appendChild(row);
       });
 
-      expenseCategories.forEach(cat => {
-        const row = createSliderRow(cat);
+      expenseCategories.forEach(category => {
+        const row = this.createSliderRow(category);
         expenseContainer.appendChild(row);
       });
-
-
-      document.querySelectorAll("input[data-category]").forEach(input => {
-        input.addEventListener("input", debounce(() => {
-          applyAdjustments();
-        }, 300));
-      });
-
-      document.querySelectorAll(".rename-input").forEach(input => {
-        input.addEventListener("input", debounce(() => {
-          applyAdjustments();
-        }, 300));
-      });
-
-      fileError.style.display = "none";
-      document.getElementById("csvPreview").textContent = lines.slice(0, 10).join("\n");
-
-      originalForecast = generateForecast(rawData);
-      renderChart(originalForecast, originalForecast);
-    } catch (err) {
-      fileError.style.display = "block";
-      fileError.textContent = "Error parsing CSV.";
     }
-  };
-
-  reader.readAsText(file);
-});
-
-function applyAdjustments() {
-  if (!rawData.length) return;
-
-  // Build rename map
-  const renameInputs = document.querySelectorAll(".rename-input");
-  const renames = {};
-  renameInputs.forEach(input => {
-    renames[input.getAttribute("data-original")] = input.value.trim();
-  });
-
-  // Map adjustments by renamed category
-  const adjustments = {};
-  document.querySelectorAll("input[data-category]").forEach(input => {
-    const original = input.getAttribute("data-category");
-    const renamed = renames[original];
-    adjustments[renamed] = parseFloat(input.value) || 0;
-  });
-
-  // Adjust data amounts with renames and adjustments
-  const adjustedData = rawData.map(({ date, amount, category }) => {
-    const renamed = renames[category] || category;
-    const percent = adjustments[renamed] || 0;
-    const adjustedAmount = amount >= 0
-      ? amount * (1 + percent / 100)
-      : amount * (1 - percent / 100);
-    return { date, amount: adjustedAmount, renamedCategory: renamed };
-  });
-
-  // Generate total forecast (balance)
-  const adjustedForecast = generateForecast(adjustedData);
-
-  // === New logic for revenue & expense forecast ===
-
-  // Aggregate daily revenue and expense totals from adjustedData (historical)
-  const dailyTotals = {}; // date => { revenue: x, expense: y }
-  adjustedData.forEach(({ date, amount }) => {
-    if (!dailyTotals[date]) dailyTotals[date] = { revenue: 0, expense: 0 };
-    if (amount >= 0) dailyTotals[date].revenue += amount;
-    else dailyTotals[date].expense += amount;
-  });
-
-  const dates = Object.keys(dailyTotals).sort();
-
-  // Calculate cumulative sums for historical revenue and expense
-  let cumRevenue = 0, cumExpense = 0;
-  const revenueHistorical = [];
-  const expenseHistorical = [];
-
-  dates.forEach(date => {
-    cumRevenue += dailyTotals[date].revenue;
-    cumExpense += dailyTotals[date].expense;
-    revenueHistorical.push({ date, value: cumRevenue });
-    expenseHistorical.push({ date, value: cumExpense });
-  });
-
-  // Calculate daily average revenue and expense for forecasting
-  const revSum = cumRevenue;
-  const expSum = cumExpense;
-  const nDays = dates.length || 1;
-
-  const revDailyAvg = revSum / nDays;
-  const expDailyAvg = expSum / nDays;
-
-  // Extend revenue and expense forecast forward 30 days
-  const MS_PER_DAY = 86400000;
-  const lastDate = new Date(dates[dates.length - 1]);
-
-  const revenueForecast = [...revenueHistorical];
-  const expenseForecast = [...expenseHistorical];
-
-  for (let i = 1; i <= 30; i++) {
-    const newDate = new Date(lastDate.getTime() + MS_PER_DAY * i);
-    const isoDate = newDate.toISOString().split("T")[0];
-
-    const lastRev = revenueForecast[revenueForecast.length - 1].value;
-    const lastExp = expenseForecast[expenseForecast.length - 1].value;
-
-    revenueForecast.push({ date: isoDate, value: lastRev + revDailyAvg });
-    expenseForecast.push({ date: isoDate, value: lastExp + expDailyAvg });
   }
 
-  // Extract arrays for charting
-  const revenueSeries = revenueForecast.map(d => d.value);
-  const expenseSeries = expenseForecast.map(d => d.value);
+  categorizeData() {
+    const revenueCategories = new Set();
+    const expenseCategories = new Set();
 
-  // Dates for chart x-axis (historical + forecast)
-  const allDates = revenueForecast.map(d => d.date);
-  //renderChart(originalForecast, adjustedForecast);
+    this.rawData.forEach(({ category, amount }) => {
+      if (amount >= 0) {
+        revenueCategories.add(category);
+      } else {
+        expenseCategories.add(category);
+      }
+    });
 
-  renderChartWithGroups(originalForecast, adjustedForecast, allDates, revenueSeries, expenseSeries);
-}
+    return { revenueCategories, expenseCategories };
+  }
+
+  createSliderRow(category) {
+    this.categoryAdjustments[category] = 0;
+    this.categoryRenames[category] = category;
+
+    const row = document.createElement("div");
+    row.className = "adjustment-row";
+    row.innerHTML = `
+      <input type="text" 
+             class="rename-input" 
+             data-original="${category}" 
+             value="${category}" 
+             placeholder="Category name" />
+      <input type="number" 
+             value="0" 
+             min="-100" 
+             max="500" 
+             data-category="${category}"
+             placeholder="Adjustment %" />
+    `;
+    return row;
+  }
+
+  setupEventListeners() {
+    // Debounced event listeners for adjustments
+    const adjustmentInputs = document.querySelectorAll("input[data-category]");
+    const renameInputs = document.querySelectorAll(".rename-input");
+    
+    adjustmentInputs.forEach(input => {
+      input.addEventListener("input", this.debounce(() => {
+        this.applyAdjustments();
+      }, 300));
+    });
+
+    renameInputs.forEach(input => {
+      input.addEventListener("input", this.debounce(() => {
+        this.applyAdjustments();
+      }, 300));
+    });
+  }
+
+  updatePreview(text) {
+    const previewElement = document.getElementById("csvPreview");
+    if (previewElement) {
+      const lines = text.trim().split("\n");
+      previewElement.textContent = lines.slice(0, 10).join("\n");
+    }
+  }
+
+  generateForecast(data) {
+    const totals = this.aggregateDataByDate(data);
+    const forecast = this.calculateCumulativeForecast(totals);
+    
+    return forecast;
+  }
+
+  aggregateDataByDate(data) {
+    const totals = {};
+    
+    // Aggregate data amounts by date
+    data.forEach(({ date, amount }) => {
+      if (!totals[date]) totals[date] = 0;
+      totals[date] += amount;
+    });
+
+    // Include time-phased events if they exist
+    if (this.timePhasedEvents && this.timePhasedEvents.length > 0) {
+      this.timePhasedEvents.forEach(event => {
+        if (!totals[event.date]) totals[event.date] = 0;
+        totals[event.date] += event.amount;
+      });
+    }
+
+    return totals;
+  }
+
+  calculateCumulativeForecast(totals) {
+    const sortedDates = Object.keys(totals).sort();
+    let cumulative = 0;
+    
+    return sortedDates.map(date => {
+      cumulative += totals[date];
+      return { date, balance: cumulative };
+    });
+  }
+
+  calculateDailyAverage(forecast) {
+    if (forecast.length <= 1) return 0;
+    
+    const firstBalance = forecast[0].balance;
+    const lastBalance = forecast[forecast.length - 1].balance;
+    const days = forecast.length;
+    
+    return (lastBalance - firstBalance) / days;
+  }
+
+  getEventAmountForDate(date) {
+    if (!this.timePhasedEvents) return 0;
+    
+    return this.timePhasedEvents
+      .filter(event => event.date === date)
+      .reduce((sum, event) => sum + event.amount, 0);
+  }
+
+  renderChartWithGroups(forecast, revenueData, expenseData) {
+    const ctx = document.getElementById("forecastChart")?.getContext("2d");
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (this.forecastChart) {
+      this.forecastChart.destroy();
+    }
+
+    // Create and assign new chart
+    this.forecastChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: forecast.map(d => d.date),
+        datasets: this.createChartDatasets(forecast, revenueData, expenseData)
+      },
+      options: this.getChartOptions()
+    });
+
+    const latestRunway = forecast.at(-1)?.balance ?? 0;
+    this.updateRunwayStatus(latestRunway);
+  }
 
 
-function renderChartWithGroups(original, adjusted, dates, revenueData, expenseData) {
-  const ctx = document.getElementById("forecastChart").getContext("2d");
+  createChartDatasets(forecast, revenueData, expenseData) {
+    return [
+      {
+        label: "Forecast",
+        data: forecast.map(d => d.balance),
+        borderColor: "#2563eb",
+        backgroundColor: "#2563eb22",
+        fill: false,
+        tension: 0.2,
+        borderWidth: 2,
+        pointRadius: 3
+      },
+      {
+        label: "Revenue",
+        data: revenueData,
+        borderColor: "#22c55e",
+        backgroundColor: "#22c55e44",
+        fill: false,
+        borderWidth: 0,
+        pointRadius: 0,
+        tension: 0.3
+      },
+      {
+        label: "Expenses",
+        data: expenseData,
+        borderColor: "#ef4444",
+        backgroundColor: "#ef444444",
+        fill: false,
+        borderWidth: 0,
+        pointRadius: 0,
+        tension: 0.3
+      }
+    ];
+  }
 
-  if (forecastChart) forecastChart.destroy();
-
-  forecastChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: dates,
-      datasets: [
-        {
-          label: "Original Forecast",
-          data: original.map(d => d.balance),
-          borderColor: "#2563eb",
-          backgroundColor: "#2563eb22",
-          fill: false,
-          tension: 0.2,
-          borderWidth: 2,
-          pointRadius: 3
-        },
-        {
-          label: "Adjusted Forecast",
-          data: adjusted.map(d => d.balance),
-          borderColor: "#16a34a",
-          backgroundColor: "#16a34a22",
-          fill: false,
-          tension: 0.2,
-          borderWidth: 2,
-          pointRadius: 3
-        },
-        {
-          label: "Revenue",
-          data: revenueData,
-          borderColor: "#22c55e",  // green
-          backgroundColor: "#22c55e44",
-          fill: false,
-          borderWidth: 0,   // No line visible
-          pointRadius: 0,   // No points visible
-          tension: 0.3
-        },
-        {
-          label: "Expenses",
-          data: expenseData,
-          borderColor: "#ef4444",  // red
-          backgroundColor: "#ef444444",
-          fill: false,
-          borderWidth: 0,   // No line visible
-          pointRadius: 0,   // No points visible
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
+  getChartOptions() {
+    return {
       responsive: true,
       interaction: { mode: "index", intersect: false },
       plugins: { legend: { position: 'bottom' } },
@@ -275,308 +356,551 @@ function renderChartWithGroups(original, adjusted, dates, revenueData, expenseDa
         x: { title: { display: true, text: "Date" } },
         y: { title: { display: true, text: "Balance ($)" } }
       }
-    }
-  });
-
-  if (adjusted.runway >= 0) {
-    runwayBox.textContent = `⚠️ Projected to run out of cash in ${adjusted.runway} days.`;
-    runwayBox.className = "runway warning";
-  } else {
-    runwayBox.textContent = `✅ Forecast remains positive over the next 30 days.`;
-    runwayBox.className = "runway safe";
-  }
-}
-
-timePhasedEvents = [];
-
-
-function generateForecast(data) {
-  const totals = {};
-  for (const { date, amount } of data) {
-    if (!totals[date]) totals[date] = 0;
-    totals[date] += amount;
+    };
   }
 
-  // Include time-phased events
-  for (const event of timePhasedEvents) {
-    if (!totals[event.date]) totals[event.date] = 0;
-    totals[event.date] += event.amount;
-  }
+  updateRunwayStatus(runway) {
+    const runwayBox = document.getElementById("runwayBox");
+    if (!runwayBox) return;
 
-  const sortedDates = Object.keys(totals).sort();
-  let cumulative = 0;
-  const forecast = sortedDates.map(date => {
-    cumulative += totals[date];
-    return { date, balance: cumulative };
-  });
-
-  const MS_PER_DAY = 86400000;
-  const lastDate = new Date(sortedDates[sortedDates.length - 1]);
-  const dailyAvg = forecast.length > 1
-    ? (forecast[forecast.length - 1].balance - forecast[0].balance) / forecast.length
-    : 0;
-
-  const startBalance = cumulative;
-  let dayBalance = startBalance;
-  let daysUntilZero = -1;
-
-  for (let i = 1; i <= 30; i++) {
-    const d = new Date(lastDate.getTime() + MS_PER_DAY * i);
-    const iso = d.toISOString().split("T")[0];
-
-    // Add time-phased event if it falls in the projection window
-    const eventOnDate = timePhasedEvents.filter(e => e.date === iso);
-    const eventAmount = eventOnDate.reduce((sum, e) => sum + e.amount, 0);
-
-    dayBalance += dailyAvg + eventAmount;
-
-    forecast.push({ date: iso, balance: dayBalance });
-    if (dayBalance <= 0 && daysUntilZero === -1) {
-      daysUntilZero = i;
+    if (runway >= 0) {
+      runwayBox.textContent = `⚠️ Projected to run out of cash in ${runway} days.`;
+      runwayBox.className = "runway warning";
+    } else {
+      runwayBox.textContent = `✅ Forecast remains positive over the next 30 days.`;
+      runwayBox.className = "runway safe";
     }
   }
 
-  forecast.runway = daysUntilZero;
-  return forecast;
-}
+  // Public methods for time-phased events
+  setTimePhasedEvents(events) {
+    this.timePhasedEvents = events || [];
+    this.renderEventList();
+  }
 
+  addTimePhasedEvent(date, amount, note = '') {
+    if (!this.timePhasedEvents) this.timePhasedEvents = [];
+    this.timePhasedEvents.push({ date, amount, note });
+    this.renderEventList();
+  }
 
-function renderChart(original, adjusted) {
-    const ctx = document.getElementById("forecastChart").getContext("2d");
+  clearTimePhasedEvents() {
+    this.timePhasedEvents = [];
+    this.renderEventList();
+  }
 
-    if (forecastChart) forecastChart.destroy();
-
-    forecastChart = new Chart(ctx, {
-    type: "line",
-    data: {
-        labels: adjusted.map(d => d.date),
-        datasets: [
-        {
-            label: "Original Forecast",
-            data: original.map(d => d.balance),
-            borderColor: "#2563eb",
-            backgroundColor: "#2563eb22",
-            fill: false,
-            tension: 0.2
-        },
-        {
-            label: "Adjusted Forecast",
-            data: adjusted.map(d => d.balance),
-            borderColor: "#16a34a",
-            backgroundColor: "#16a34a22",
-            fill: false,
-            tension: 0.2
-        }
-        ]
-    },
-    options: {
-        responsive: true,
-        interaction: { mode: "index", intersect: false },
-        plugins: { legend: { position: 'bottom' } },
-        scales: {
-        x: { title: { display: true, text: "Date" } },
-        y: { title: { display: true, text: "Balance ($)" } }
-        }
+  // Event management methods
+  handleAddEvent() {
+    const eventData = this.getEventFormData();
+    const validation = this.validateEventData(eventData);
+    
+    if (!validation.isValid) {
+      alert(validation.message);
+      return;
     }
+    
+    this.addTimePhasedEvent(eventData.date, eventData.amount, eventData.note);
+    this.clearEventForm();
+    this.refreshForecast();
+  }
+
+  getEventFormData() {
+    return {
+      date: document.getElementById("eventDate")?.value || '',
+      amount: parseFloat(document.getElementById("eventAmount")?.value || '0'),
+      note: document.getElementById("eventNote")?.value.trim() || ''
+    };
+  }
+
+  validateEventData({ date, amount, note }) {
+    if (!date) {
+      return { isValid: false, message: "Please select a date for the event." };
+    }
+    
+    if (isNaN(amount) || amount === 0) {
+      return { isValid: false, message: "Please enter a valid amount (positive for income, negative for expense)." };
+    }
+    
+    if (!note) {
+      return { isValid: false, message: "Please provide a description for the event." };
+    }
+    
+    return { isValid: true };
+  }
+
+  clearEventForm() {
+    const eventDate = document.getElementById("eventDate");
+    const eventAmount = document.getElementById("eventAmount");
+    const eventNote = document.getElementById("eventNote");
+    
+    if (eventDate) eventDate.value = "";
+    if (eventAmount) eventAmount.value = "";
+    if (eventNote) eventNote.value = "";
+  }
+
+  renderEventList() {
+    const eventList = document.getElementById("eventList");
+    if (!eventList) return;
+    
+    eventList.innerHTML = "";
+    
+    if (!this.timePhasedEvents.length) {
+      eventList.innerHTML = '<li class="no-events">No events scheduled</li>';
+      return;
+    }
+    
+    const sortedEvents = [...this.timePhasedEvents].sort((a, b) => a.date.localeCompare(b.date));
+    
+    sortedEvents.forEach((event, originalIndex) => {
+      const listItem = this.createEventListItem(event, originalIndex);
+      eventList.appendChild(listItem);
     });
+  }
 
-    if (adjusted.runway >= 0) {
-    runwayBox.textContent = `⚠️ Projected to run out of cash in ${adjusted.runway} days.`;
-    runwayBox.className = "runway warning";
-    } else {
-    runwayBox.textContent = `✅ Forecast remains positive over the next 30 days.`;
-    runwayBox.className = "runway safe";
+  createEventListItem(event, index) {
+    const li = document.createElement("li");
+    li.className = "event-item";
+    
+    const amountClass = event.amount >= 0 ? "positive" : "negative";
+    const amountSymbol = event.amount >= 0 ? "💰" : "💸";
+    const formattedAmount = this.formatCurrency(event.amount);
+    
+    li.innerHTML = `
+      <div class="event-details">
+        <span class="event-date">📅 ${this.formatDate(event.date)}</span>
+        <span class="event-amount ${amountClass}">${amountSymbol} ${formattedAmount}</span>
+        <span class="event-note">${this.escapeHtml(event.note)}</span>
+      </div>
+      <button class="delete-btn" onclick="deleteEvent(${index})" title="Delete event">✖</button>
+    `;
+    
+    return li;
+  }
+
+  deleteEvent(index) {
+    if (index >= 0 && index < this.timePhasedEvents.length) {
+      this.timePhasedEvents.splice(index, 1);
+      this.renderEventList();
+      this.refreshForecast();
     }
-}
-
-document.getElementById("downloadCsvBtn").addEventListener("click", () => {
-  if (!forecastChart) return;
-
-  const dataset = forecastChart.data.datasets.find(ds => ds.label === "Adjusted Forecast");
-  const labels = forecastChart.data.labels;
-
-  let csvContent = "date,balance\n";
-  for (let i = 0; i < labels.length; i++) {
-    csvContent += `${labels[i]},${dataset.data[i].toFixed(2)}\n`;
   }
 
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.setAttribute("download", "adjusted_forecast.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-});
+  refreshForecast() {
+    if (!this.rawData.length) return;
+    
+    const adjustedData = this.processAdjustedDataForRefresh();
+    const adjustedForecast = this.generateForecast(adjustedData);
+    const forecast = [...this.originalForecast, ...adjustedForecast];
 
-document.getElementById("saveSessionBtn").addEventListener("click", () => {
-  const fileInput = document.getElementById("csvFile"); // ID of your CSV input
-  const file = fileInput.files[0];
-
-  if (!file) {
-    alert("Please upload a CSV file first.");
-    return;
+    const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(adjustedData);
+    this.renderChartWithGroups(forecast, revenueForecast, expenseForecast);
   }
 
-  const revenueAdj = document.getElementById("revenueAdj").value;
-  const expenseAdj = document.getElementById("expenseAdj").value;
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("revenue_adj", revenueAdj);
-  formData.append("expense_adj", expenseAdj);
-
-  fetch("http://localhost:8000/upload-session/", {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.session_id) {
-      alert("✅ Session saved successfully!\nSession ID: " + data.session_id);
-    } else {
-      alert("❌ Failed to save session.");
-      console.error(data);
-    }
-  })
-  .catch(err => {
-    console.error("Upload error:", err);
-    alert("⚠️ Error saving session.");
-  });
-});
-
-document.getElementById("runAiForecastBtn").addEventListener("click", () => {
-  const fileInput = document.getElementById("csvFile");
-  const file = fileInput.files[0];
-  if (!file) {
-    alert("Please upload a CSV file first.");
-    return;
+  processAdjustedDataForRefresh() {
+    return this.rawData.map(({ date, amount, category }) => {
+      const percent = this.categoryAdjustments[category] || 0;
+      const adjustedAmount = amount >= 0
+        ? amount * (1 + percent / 100)
+        : amount * (1 - percent / 100);
+      return { date, amount: adjustedAmount };
+    });
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
+  // Utility methods
+  formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(Math.abs(amount));
+  }
 
-  fetch("http://localhost:8000/forecast/ai/?days=30", {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.json())
-  .then(aiData => {
-    if (!Array.isArray(aiData)) {
-      console.error("Unexpected AI response:", aiData);
-      alert("AI forecast failed.");
+  formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // CSV Download functionality
+  downloadForecastCsv() {
+    if (!this.forecastChart) {
+      alert("No forecast chart available to download.");
       return;
     }
 
-    const aiDates = aiData.map(d => d.ds);
-    const aiBalances = aiData.map(d => d.yhat.toFixed(2));
-
-    // Add or update the AI dataset
-    const existingAiDatasetIndex = forecastChart.data.datasets.findIndex(
-      ds => ds.label === "AI Forecast"
-    );
-
-    const aiDataset = {
-      label: "AI Forecast",
-      data: aiBalances,
-      borderColor: "rgba(255, 99, 132, 1)",
-      backgroundColor: "rgba(255, 99, 132, 0.2)",
-      borderWidth: 2,
-      tension: 0.3
-    };
-
-    if (existingAiDatasetIndex !== -1) {
-      forecastChart.data.datasets[existingAiDatasetIndex] = aiDataset;
-    } else {
-      forecastChart.data.datasets.push(aiDataset);
+    const csvData = this.generateForecastCsvData();
+    if (!csvData) {
+      alert("No adjusted forecast data available.");
+      return;
     }
 
-    // Use AI forecast dates for X-axis (if different from original)
-    forecastChart.data.labels = aiDates;
-    forecastChart.update();
-  })
-  .catch(err => {
-    console.error("AI forecast error:", err);
-    alert("Error contacting AI forecast service.");
-  });
-});
-
-document.getElementById("addEventBtn").addEventListener("click", () => {
-  const date = document.getElementById("eventDate").value;
-  const amount = parseFloat(document.getElementById("eventAmount").value);
-  const note = document.getElementById("eventNote").value.trim();
-
-  if (!date || isNaN(amount) || !note) {
-    alert("Please fill in all event fields.");
-    return;
+    this.downloadCsv(csvData, "adjusted_forecast.csv");
   }
 
-  timePhasedEvents.push({ date, amount, note });
-  document.getElementById("eventDate").value = "";
-  document.getElementById("eventAmount").value = "";
-  document.getElementById("eventNote").value = "";
+  generateForecastCsvData() {
+    const dataset = this.forecastChart.data.datasets.find(ds => ds.label === "Forecast");
+    const labels = this.forecastChart.data.labels;
+    
+    if (!dataset || !labels) return null;
 
-  refreshForecast();
-  renderEventList();
-});
+    let csvContent = "date,balance\n";
+    for (let i = 0; i < labels.length; i++) {
+      const balance = dataset.data[i];
+      csvContent += `${labels[i]},${balance.toFixed(2)}\n`;
+    }
 
-function renderEventList() {
-  const ul = document.getElementById("eventList");
-  ul.innerHTML = "";
-
-  timePhasedEvents.sort((a, b) => a.date.localeCompare(b.date));
-
-  timePhasedEvents.forEach((e, idx) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <span>📅 ${e.date} | 💸 ${e.amount} | ${e.note}</span>
-      <button onclick="deleteEvent(${idx})">✖</button>
-    `;
-    ul.appendChild(li);
-  });
-}
-
-window.deleteEvent = function(index) {
-  timePhasedEvents.splice(index, 1);
-  refreshForecast();
-  renderEventList();
-};
-
-function refreshForecast() {
-  if (!rawData.length) return;
-
-  const adjustedData = rawData.map(({ date, amount, category }) => {
-    const percent = categoryAdjustments[category] || 0;
-    const adjustedAmount = amount >= 0
-      ? amount * (1 + percent / 100)
-      : amount * (1 - percent / 100);
-    return { date, amount: adjustedAmount };
-  });
-
-  const adjustedForecast = generateForecast(adjustedData);
-  renderChart(originalForecast, adjustedForecast);
-}
-
-function generateRecurringInstances(event) {
-  const MS_PER_DAY = 86400000;
-  const results = [];
-  const start = new Date(event.startDate);
-  let date = new Date(start);
-
-  const addDays = {
-    weekly: 7,
-    biweekly: 14,
-    monthly: 30,
-    quarterly: 90,
-    yearly: 365
-  };
-
-  for (let i = 0; i < event.occurrences; i++) {
-    const iso = date.toISOString().split("T")[0];
-    results.push({ date: iso, amount: event.amount, category: "Recurring: " + event.label });
-    date = new Date(date.getTime() + addDays[event.frequency] * MS_PER_DAY);
+    return csvContent;
   }
 
-  return results;
+  downloadCsv(content, filename) {
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Session save functionality
+  async saveSession() {
+    const validationResult = this.validateSessionSave();
+    if (!validationResult.isValid) {
+      alert(validationResult.message);
+      return;
+    }
+
+    const sessionData = this.prepareSessionData();
+    
+    try {
+      const response = await this.uploadSession(sessionData);
+      this.handleSessionSaveResponse(response);
+    } catch (error) {
+      console.error("Session save error:", error);
+      alert("⚠️ Error saving session. Please try again.");
+    }
+  }
+
+  validateSessionSave() {
+    const fileInput = document.getElementById("csvFile");
+    const file = fileInput?.files[0];
+
+    if (!file) {
+      return { isValid: false, message: "Please upload a CSV file first." };
+    }
+
+    return { isValid: true };
+  }
+
+  prepareSessionData() {
+    const fileInput = document.getElementById("csvFile");
+    const file = fileInput.files[0];
+    
+    const revenueAdj = document.getElementById("revenueAdj")?.value || "0";
+    const expenseAdj = document.getElementById("expenseAdj")?.value || "0";
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("revenue_adj", revenueAdj);
+    formData.append("expense_adj", expenseAdj);
+    
+    // Add time-phased events if they exist
+    if (this.timePhasedEvents.length > 0) {
+      formData.append("time_phased_events", JSON.stringify(this.timePhasedEvents));
+    }
+
+    return formData;
+  }
+
+  async uploadSession(formData) {
+    const response = await fetch("http://localhost:8000/upload-session/", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  handleSessionSaveResponse(data) {
+    if (data.session_id) {
+      alert(`✅ Session saved successfully!\nSession ID: ${data.session_id}`);
+    } else {
+      alert("❌ Failed to save session.");
+      console.error("Session save failed:", data);
+    }
+  }
+
+  // AI Forecast functionality
+  async runAiForecast() {
+    const validationResult = this.validateAiForecast();
+    if (!validationResult.isValid) {
+      alert(validationResult.message);
+      return;
+    }
+
+    const forecastData = this.prepareAiForecastData();
+    
+    try {
+      const aiData = await this.fetchAiForecast(forecastData);
+      this.processAiForecastResponse(aiData);
+    } catch (error) {
+      console.error("AI forecast error:", error);
+      alert("Error contacting AI forecast service. Please try again.");
+    }
+  }
+
+  validateAiForecast() {
+    const fileInput = document.getElementById("csvFile");
+    const file = fileInput?.files[0];
+
+    if (!file) {
+      return { isValid: false, message: "Please upload a CSV file first." };
+    }
+
+    if (!this.forecastChart) {
+      return { isValid: false, message: "No forecast chart available. Please process your data first." };
+    }
+
+    return { isValid: true };
+  }
+
+  prepareAiForecastData() {
+    const fileInput = document.getElementById("csvFile");
+    const file = fileInput.files[0];
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    return formData;
+  }
+
+  async fetchAiForecast(formData) {
+    const response = await fetch("http://localhost:8000/forecast/ai/?days=30", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  processAiForecastResponse(aiData) {
+    if (!Array.isArray(aiData)) {
+      console.error("Unexpected AI response:", aiData);
+      alert("AI forecast failed - unexpected response format.");
+      return;
+    }
+
+    const aiMappedData = aiData.map( d =>{
+      const x = new Date(d.ds).toISOString().split("T")[0];
+      const y = parseFloat(d.yhat.toFixed(2));
+      return {
+        date: x, 
+        amount: y, 
+        category: "AI Forecast"
+      };
+    });
+
+    this.addAiForecastToChart(aiMappedData);
+  }
+  
+  addAiForecastToChart(aiMappedData) {
+    const aiForecast = this.generateForecast(aiMappedData);
+    const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(aiForecast);
+    const forecast = [...this.originalForecast, ...aiForecast];
+
+    this.renderChartWithGroups(forecast, revenueForecast, expenseForecast);
+  }
+
+  // Utility methods for external integrations
+  getSessionData() {
+    return {
+      rawData: this.rawData,
+      categoryAdjustments: this.categoryAdjustments,
+      categoryRenames: this.categoryRenames,
+      timePhasedEvents: this.timePhasedEvents
+    };
+  }
+
+  setApiBaseUrl(baseUrl) {
+    this.apiBaseUrl = baseUrl || "http://localhost:8000";
+  }
+
+  async saveSessionToCustomEndpoint(endpoint, additionalData = {}) {
+    const sessionData = this.getSessionData();
+    const payload = { ...sessionData, ...additionalData };
+    
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  applyAdjustments() {
+    if (!this.rawData.length) return;
+
+    const renameMap = this.buildRenameMap();
+    const adjustmentMap = this.buildAdjustmentMap(renameMap);
+    const adjustedData = this.processAdjustedData(renameMap, adjustmentMap);
+    
+    const adjustedForecast = this.generateForecast(adjustedData);
+    const forecast = [...this.originalForecast, ...adjustedForecast];
+    const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(adjustedData);
+
+    this.renderChartWithGroups(
+      forecast, 
+      revenueForecast, 
+      expenseForecast
+    );
+  }
+
+  buildRenameMap() {
+    const renames = {};
+    document.querySelectorAll(".rename-input").forEach(input => {
+      const original = input.getAttribute("data-original");
+      const renamed = input.value.trim();
+      renames[original] = renamed;
+    });
+    return renames;
+  }
+
+  buildAdjustmentMap(renameMap) {
+    const adjustments = {};
+    document.querySelectorAll("input[data-category]").forEach(input => {
+      const original = input.getAttribute("data-category");
+      const renamed = renameMap[original];
+      const adjustment = parseFloat(input.value) || 0;
+      adjustments[renamed] = adjustment;
+    });
+    return adjustments;
+  }
+
+  processAdjustedData(renameMap, adjustmentMap) {
+    return this.rawData.map(({ date, amount, category }) => {
+      const renamed = renameMap[category] || category;
+      const percent = adjustmentMap[renamed] || 0;
+      const adjustedAmount = amount >= 0
+        ? amount * (1 + percent / 100)
+        : amount * (1 - percent / 100);
+      return { date, amount: adjustedAmount, renamedCategory: renamed };
+    });
+  }
+
+  generateRevenueExpenseForecast(adjustedData) {
+    const dailyTotals = this.aggregateDailyTotals(adjustedData);
+    const dates = Object.keys(dailyTotals).sort();
+    
+    const { revenueHistorical, expenseHistorical } = this.calculateHistoricalCumulatives(dates, dailyTotals);
+    
+    return {
+      revenueForecast: revenueHistorical.map(d => d.value),
+      expenseForecast: expenseHistorical.map(d => d.value),
+      allDates: dates
+    };
+  }
+
+  aggregateDailyTotals(adjustedData) {
+    const dailyTotals = {};
+    adjustedData.forEach(({ date, amount }) => {
+      if (!dailyTotals[date]) {
+        dailyTotals[date] = { revenue: 0, expense: 0 };
+      }
+      if (amount >= 0) {
+        dailyTotals[date].revenue += amount;
+      } else {
+        dailyTotals[date].expense += amount;
+      }
+    });
+    return dailyTotals;
+  }
+
+  calculateHistoricalCumulatives(dates, dailyTotals) {
+    let cumRevenue = 0, cumExpense = 0;
+    const revenueHistorical = [];
+    const expenseHistorical = [];
+
+    dates.forEach(date => {
+      cumRevenue += dailyTotals[date].revenue;
+      cumExpense += dailyTotals[date].expense;
+      revenueHistorical.push({ date, value: cumRevenue });
+      expenseHistorical.push({ date, value: cumExpense });
+    });
+
+    return { revenueHistorical, expenseHistorical };
+  }
+
+  showError(message) {
+    const errorElement = document.getElementById("fileError");
+    if (errorElement) {
+      errorElement.style.display = "block";
+      errorElement.textContent = message;
+    }
+  }
+
+  hideError() {
+    const errorElement = document.getElementById("fileError");
+    if (errorElement) {
+      errorElement.style.display = "none";
+    }
+  }
+
+  debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Public methods for external access
+  getRawData() {
+    return this.rawData;
+  }
+
+  getCategoryAdjustments() {
+    return this.categoryAdjustments;
+  }
+
+  getCategoryRenames() {
+    return this.categoryRenames;
+  }
+}
+
+// Initialize the CSV processor
+const csvProcessor = new CSVProcessor();
+
+// Export for module usage (optional)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = CSVProcessor;
 }
 
