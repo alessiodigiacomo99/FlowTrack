@@ -85,7 +85,6 @@ class CSVProcessor {
 
       this.resetAdjustments();
       this.createCategorySliders();
-      this.setupEventListeners();
       this.updatePreview(text);
       this.originalForecast = this.generateForecast(this.rawData);
       const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(this.rawData);
@@ -206,24 +205,6 @@ class CSVProcessor {
     return row;
   }
 
-  setupEventListeners() {
-    // Debounced event listeners for adjustments
-    const adjustmentInputs = document.querySelectorAll("input[data-category]");
-    const renameInputs = document.querySelectorAll(".rename-input");
-    
-    adjustmentInputs.forEach(input => {
-      input.addEventListener("input", this.debounce(() => {
-        this.applyAdjustments();
-      }, 300));
-    });
-
-    renameInputs.forEach(input => {
-      input.addEventListener("input", this.debounce(() => {
-        this.applyAdjustments();
-      }, 300));
-    });
-  }
-
   updatePreview(text) {
     const previewElement = document.getElementById("csvPreview");
     if (previewElement) {
@@ -267,24 +248,6 @@ class CSVProcessor {
       cumulative += totals[date];
       return { date, amount: cumulative };
     });
-  }
-
-  calculateDailyAverage(forecast) {
-    if (forecast.length <= 1) return 0;
-    
-    const firstBalance = forecast[0].balance;
-    const lastBalance = forecast[forecast.length - 1].balance;
-    const days = forecast.length;
-    
-    return (lastBalance - firstBalance) / days;
-  }
-
-  getEventAmountForDate(date) {
-    if (!this.timePhasedEvents) return 0;
-    
-    return this.timePhasedEvents
-      .filter(event => event.date === date)
-      .reduce((sum, event) => sum + event.amount, 0);
   }
 
   renderChartWithGroups(forecast, revenueData, expenseData) {
@@ -423,8 +386,35 @@ class CSVProcessor {
     if (!note) {
       return { isValid: false, message: "Please provide a description for the event." };
     }
-    
+
+    const dates = this.getSortedDates();
+
+    if(dates == null || dates.length == 0) {
+      return { isValid: false, message: "Error with raw data" };
+    }
+
+    const lastDate = new Date(dates[dates.length - 1]);
+    if(new Date(date) < lastDate) {
+      return { isValid: false, message: `Event date must be after the last date in the csv (${lastDate}).` };
+    }
+
+    const endingForecasting = this.addDays(lastDate, 30);
+    if(new Date(date) > endingForecasting) {
+      return { isValid: false, message: "Event date must be within the next 30 days." };
+
+    }
     return { isValid: true };
+  }
+
+  getSortedDates(){
+    return this.getRawData()
+    .map(d => d.date)
+    .sort((a, b) => a.localeCompare(b));
+  }
+
+  addDays(date, days) {
+    date.setDate(date.getDate() + days);
+    return date;
   }
 
   clearEventForm() {
@@ -486,13 +476,21 @@ class CSVProcessor {
 
   refreshForecast() {
     if (!this.rawData.length) return;
-    
-    const adjustedData = this.processAdjustedDataForRefresh();
-    const adjustedForecast = this.generateForecast(adjustedData);
-    const forecast = [...this.originalForecast, ...adjustedForecast];
+    const adjustedForecast = this.generateForecast(this.rawData);
 
+    const adjustedData = this.addTimePhasedEventsToRawData()
     const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(adjustedData);
-    this.renderChartWithGroups(forecast, revenueForecast, expenseForecast);
+    this.renderChartWithGroups(adjustedForecast, revenueForecast, expenseForecast);
+  }
+
+  addTimePhasedEventsToRawData(){
+    if (!this.timePhasedEvents || this.timePhasedEvents.length === 0) return this.rawData;
+
+    let localRawData = [...this.rawData]; // Ensure we don't mutate the original data
+    this.timePhasedEvents.forEach(event => {
+      localRawData.push({ date: event.date, amount: event.amount, category: event.note || 'Time Phased Event' });
+    });
+    return localRawData;
   }
 
   processAdjustedDataForRefresh() {
@@ -758,34 +756,6 @@ class CSVProcessor {
     }
 
     return await response.json();
-  }
-
-  applyAdjustments() {
-    if (!this.rawData.length) return;
-
-    //const renameMap = this.buildRenameMap();
-    const adjustmentMap = this.buildAdjustmentMap();
-    const adjustedData = this.processAdjustedData(adjustmentMap);
-    
-    const adjustedForecast = this.generateForecast(adjustedData);
-    const forecast = [...this.originalForecast, ...adjustedForecast];
-    const { revenueForecast, expenseForecast } = this.generateRevenueExpenseForecast(adjustedData);
-
-    this.renderChartWithGroups(
-      forecast, 
-      revenueForecast, 
-      expenseForecast
-    );
-  }
-
-  buildAdjustmentMap() {
-    const adjustments = {};
-    document.querySelectorAll("input[data-category]").forEach(input => {
-      const category = input.getAttribute("data-category");
-      const adjustment = parseFloat(input.value) || 0;
-      adjustments[category] = adjustment;
-    });
-    return adjustments;
   }
 
   processAdjustedData(map) {
