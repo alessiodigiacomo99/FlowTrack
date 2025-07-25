@@ -9,9 +9,8 @@
 </head>
 <body>
   <header>
-    <h1>Predict your business's cash flow in minutes</h1>
+    <h1>Predict your business's cash flow in seconds</h1>
     <p>Upload your bank CSV and simulate your cash runway instantly.</p>
-    <button class="cta-button" onclick="joinWaitlist()">Join the Free Beta</button>
   </header>
 
   <section>
@@ -45,7 +44,7 @@
     <div id="eventForm" class="event-form">
       <input type="date" id="eventDate" required />
       <input type="number" id="eventAmount" placeholder="Amount" required />
-      <input type="text" id="eventNote" placeholder="Description (e.g. Investment)" required />
+      <input type="text" id="eventCategory" placeholder="Description (e.g. Investment)" required />
       <button id="addEventBtn">Add Event</button>
     </div>
 
@@ -75,8 +74,8 @@
     Built by Alessio • FlowTrack • 🚀 Beta
   </footer>
 
-  <script src="main.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.esm.js"></script>
+  <script type="module" src="js/main.js"></script>
+  
 </body>
 </html>

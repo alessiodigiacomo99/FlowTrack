@@ -1,10 +1,19 @@
-from fastapi import FastAPI, UploadFile, Form, File
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-import uuid, os, csv
-from prophet import Prophet
-import pandas as pd
+import csv
+import json
+import os
+import uuid
+from datetime import date as date_cls, timedelta
 from io import StringIO
+from typing import List, Optional
+
+import pandas as pd
+from fastapi import FastAPI, File, UploadFile, Query, Body, HTTPException
+from fastapi import Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from prophet import Prophet
+from pydantic import BaseModel, Field
+
 app = FastAPI()
 
 # Enable CORS for frontend
@@ -14,6 +23,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class Item(BaseModel):
+    date: date_cls
+    amount: float
+    category: str = Field(..., description="Category name to adjust")
+
+class ForecastItem(BaseModel):
+    date: date_cls
+    amount: float
+
+class CategoryItem(BaseModel):
+    category: str = Field(..., description="Category name to adjust")
+    percentage: float = Field(
+        ..., ge=0.0, description="Multiplier to apply (e.g. 1.10 for +10%)"
+    )
 
 STORAGE_PATH = "storage"
 os.makedirs(STORAGE_PATH, exist_ok=True)
@@ -43,17 +67,71 @@ async def upload_session(
 
 
 
-@app.post("/forecast/ai/")
-async def forecast_ai(file: UploadFile = File(...), days: int = 30):
-    contents = await file.read()
-    df = pd.read_csv(StringIO(contents.decode("utf-8")))
+@app.post(
+    "/forecast/ai/",
+    response_model=List[ForecastItem],
+    summary="Generate a balance forecast with optional extra adjustment",
+)
+async def forecast_ai(
+    file: UploadFile = File(..., description="CSV with ‘date’ and ‘amount’ columns"),
+    days: int = Query(30, ge=1, le=365, description="Days to predict into the future"),
+    extra_event_list: Optional[str] = Form(None),
+    category_item_list: Optional[List[CategoryItem]] = Body(
+        default=[],
+        description="List of category-based multipliers to apply"
+    )
+):
+    content = await file.read()
+    try:
+        df = pd.read_csv(StringIO(content.decode("utf-8")))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid CSV: {e}")
 
-    if "date" not in df.columns or "amount" not in df.columns:
-        return JSONResponse(content={"error": "CSV must contain 'date' and 'amount' columns."}, status_code=400)
+    # --- Validate required columns ---
+    if not {"date", "amount"}.issubset(df.columns):
+        raise HTTPException(
+            status_code=400,
+            detail="CSV must contain both ‘date’ and ‘amount’ columns."
+        )
+
+    if category_item_list and "category" not in df.columns:
+        raise HTTPException(
+            status_code=400,
+            detail="‘category’ column is required"
+        )
+
+    parsed_events = []
+    if extra_event_list:
+        try:
+            parsed = json.loads(extra_event_list)
+            parsed_events = [Item(**item) for item in parsed]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid extra_event_list: {e}")
 
     # Prepare cumulative balance over time
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
+
+    min_d = df["date"].min()
+    max_d = df["date"].max() + timedelta(days=30)  # extend max date by 30 days
+
+    for extra_event in parsed_events:
+
+        if not(min_d.date() <= extra_event.date <= max_d.date()):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"‘extra_event.date’ ({extra_event.date}) is outside data range "
+                           f"{min_d} to {max_d}."
+                )
+
+    for cat in category_item_list:
+        if cat.category not in df["category"].unique():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Category '{cat.category}' not found in CSV"
+            )
+        df.loc[df["category"] == cat.category, "amount"] *= cat.percentage
+
     df["balance"] = df["amount"].cumsum()
 
     # Prophet expects 'ds' and 'y' columns
@@ -67,6 +145,24 @@ async def forecast_ai(file: UploadFile = File(...), days: int = 30):
     future = model.make_future_dataframe(periods=days)
     forecast = model.predict(future)
 
+    parsed_events.sort(key=lambda ev: ev.date)
+
+    forecast["date"] = forecast["ds"].dt.date
+    forecast["adj_yhat"] = forecast["yhat"]  # start with baseline
+
+    for ev in parsed_events:
+        ev_ts = pd.to_datetime(ev.date)  # turn Python date -> pd.Timestamp
+
+        # mask on the original 'ds' column, which is safe to compare
+        mask = forecast["ds"] >= ev_ts
+        forecast.loc[mask, "adj_yhat"] += ev.amount
+
     # Return relevant data
-    results = forecast[["ds", "yhat"]].tail(days)
-    return results.to_dict(orient="records")
+    out = (
+        forecast[["ds", "adj_yhat"]]
+        .tail(days)
+        .rename(columns={"ds": "date", "adj_yhat": "amount"})
+        .assign(date=lambda d: d["date"].dt.date)
+    )
+
+    return out.to_dict(orient="records")
