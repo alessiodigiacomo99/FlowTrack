@@ -1,3 +1,6 @@
+:root {
+  --ligth-green: #10b981;
+}
 body {
     font-family: 'Segoe UI', sans-serif;
     margin: 0; padding: 0;
@@ -10,29 +13,6 @@ header {
     padding: 5rem 1rem;
     text-align: center;
 }
-.cta-button {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 0.5rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.cta-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
-    background: linear-gradient(135deg, #2563eb, #103393);
-}
-
-.cta-button:active {
-    transform: translateY(-1px);
-}
 
 section {
     padding: 2rem 1rem;
@@ -44,6 +24,34 @@ h2 {
     font-size: 1.5rem;
     margin-bottom: 1rem;
 }
+
+sl-button#downloadCsvBtn:hover::part(base) {
+  background-color: transparent;
+  border: 1px solid var(--ligth-green); 
+  color: var(--ligth-green);           
+  transition: all 0.1s ease;              
+}
+
+.file-input-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid grey;
+  color: grey;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.file-input-btn:hover {
+  background-color: transparent;
+  border: 1px solid var(--ligth-green); 
+  color: var(--ligth-green);           
+  transition: all 0.1s ease;   
+}
+
 .uploader, .adjustments, .forecast-chart {
     background: white;
     border-radius: 0.5rem;
@@ -51,23 +59,11 @@ h2 {
     padding: 1.5rem;
     margin-bottom: 2rem;
 }
-.adjustments input {
-    width: 60px;
-    padding: 0.3rem;
-    margin-left: 0.5rem;
-    margin-right: 1rem;
-}
+
 .adjustments label {
     margin-right: 1rem;
 }
-.adjustment-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-    width: 25vw;
-    justify-content: space-between;
-}
+
 .runway {
     margin-top: 1rem;
     font-weight: bold;
@@ -110,4 +106,71 @@ pre {
     border: none;
     color: #ef4444;
     cursor: pointer;
+}
+
+#adjustments, #forecast-chart {
+    display: none;
+}
+
+.event-form sl-input{
+    max-width: 200px;
+}
+
+input[type="file"] {
+    max-width: 200px;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  max-width: 25vw;
+}
+
+.rename-input {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px dashed transparent;
+  cursor: text;
+}
+.rename-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #f0f8ff;
+}
+
+.category-slider {
+  flex: 2;
+  appearance: none;
+  height: 6px;
+  background: #e2e8f0;
+  cursor: pointer;
+}
+.category-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+.category-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.category-value {
+  width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hidden {
+  display: none;
+}
+
+.select-category {
+  margin-bottom: 20px;
 }

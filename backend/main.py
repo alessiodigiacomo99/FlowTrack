@@ -76,10 +76,7 @@ async def forecast_ai(
     file: UploadFile = File(..., description="CSV with ‘date’ and ‘amount’ columns"),
     days: int = Query(30, ge=1, le=365, description="Days to predict into the future"),
     extra_event_list: Optional[str] = Form(None),
-    category_item_list: Optional[List[CategoryItem]] = Body(
-        default=[],
-        description="List of category-based multipliers to apply"
-    )
+    category_item_list: Optional[str] = Form(None)
 ):
     content = await file.read()
     try:
@@ -99,6 +96,11 @@ async def forecast_ai(
             status_code=400,
             detail="‘category’ column is required"
         )
+
+    if category_item_list:
+        category_item_list = [CategoryItem(**item) for item in json.loads(category_item_list)]
+    else:
+        category_item_list = []
 
     parsed_events = []
     if extra_event_list:
@@ -165,4 +167,12 @@ async def forecast_ai(
         .assign(date=lambda d: d["date"].dt.date)
     )
 
-    return out.to_dict(orient="records")
+    df_history = (
+        df[["date", "balance"]]
+        .copy()
+        .assign(date=lambda d: d["date"].dt.date, amount=lambda d: d["balance"])
+        [["date", "amount"]]
+    )
+
+    full_data = pd.concat([df_history, out], ignore_index=True)
+    return full_data.to_dict(orient="records")

@@ -1,3 +1,4 @@
+import { AppState } from "./state.js";
 
 export const Utils = {
   apiBaseUrl : 'http://localhost:8081/',
@@ -22,21 +23,10 @@ export const Utils = {
     return result;
   },
 
-  createSliderRow(category) {
-    const row = document.createElement("div");
-    row.className = "adjustment-row";
-    row.innerHTML = `
-      <div class="rename-input" 
-             data-original="${category}" 
-             value="${category}" >${category}</div>
-      <input type="number" 
-             value="0" 
-             min="-100" 
-             max="500" 
-             data-category="${category}"
-             placeholder="Adjustment %" />
-    `;
-    return row;
+  addRawData(forecastData){
+    forecastData.forEach(item => {
+      AppState.rawData.push(item);
+    })
   },
 
   updateRunwayStatus(runway) {

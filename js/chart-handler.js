@@ -39,7 +39,7 @@ export const ChartHandler = {
       data: {
         labels,
         datasets: [{
-          label: "Forecast",
+          label: "Balance",
           data,
           borderColor: "#2563eb",
           backgroundColor: "#2563eb22",
@@ -52,8 +52,8 @@ export const ChartHandler = {
         responsive: true,
         plugins: { legend: { position: 'bottom' } },
         scales: {
-          x: { title: { display: true, text: "Date" } },
-          y: { title: { display: true, text: "Balance ($)" } }
+          x: { title: { display: false, text: "Date" } },
+          y: { title: { display: true, text: "Balance" } }
         }
       }
     });
