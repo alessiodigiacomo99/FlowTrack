@@ -1,16 +1,12 @@
-import csv
 import json
-import os
-import uuid
 from datetime import date as date_cls, timedelta
 from io import StringIO
 from typing import List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, File, UploadFile, Query, Body, HTTPException
+from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi import Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from prophet import Prophet
 from pydantic import BaseModel, Field
 
@@ -38,34 +34,6 @@ class CategoryItem(BaseModel):
     percentage: float = Field(
         ..., ge=0.0, description="Multiplier to apply (e.g. 1.10 for +10%)"
     )
-
-STORAGE_PATH = "storage"
-os.makedirs(STORAGE_PATH, exist_ok=True)
-
-@app.post("/upload-session/")
-async def upload_session(
-    file: UploadFile,
-    revenue_adj: float = Form(...),
-    expense_adj: float = Form(...)
-):
-    session_id = str(uuid.uuid4())
-    csv_path = os.path.join(STORAGE_PATH, f"session_{session_id}.csv")
-
-    # Save uploaded file
-    with open(csv_path, "wb") as f:
-        contents = await file.read()
-        f.write(contents)
-
-    # Save metadata
-    meta_path = os.path.join(STORAGE_PATH, f"session_{session_id}.meta.csv")
-    with open(meta_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["revenue_adj", "expense_adj"])
-        writer.writerow([revenue_adj, expense_adj])
-
-    return JSONResponse(content={"session_id": session_id, "status": "saved"})
-
-
 
 @app.post(
     "/forecast/ai/",
@@ -158,6 +126,9 @@ async def forecast_ai(
         # mask on the original 'ds' column, which is safe to compare
         mask = forecast["ds"] >= ev_ts
         forecast.loc[mask, "adj_yhat"] += ev.amount
+
+        mask = df["date"] >= ev_ts
+        df.loc[mask, "balance"] += ev.amount
 
     # Return relevant data
     out = (
