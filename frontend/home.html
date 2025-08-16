@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlowTrack – Cash Flow Simulator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/light.css" />
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="./../common/style-common.css">
+    <link rel="stylesheet" href="home/style-home.css">
+    <link rel="stylesheet" href="./../common/style-nav.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <sl-icon name="graph-up-arrow" class="logo"></sl-icon>
+                <div>
+                    <h1 class="title">FlowTrack</h1>
+                    <div class="small">Predict, simulate and act</div>
+                </div>
+            </div>
+            <nav class="navbar">
+                <a href="#product-highlights">Features</a>
+                <a href="./../upload/upload.html">Product Demo</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#contact">Contact</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="hero" aria-labelledby="hero-heading">
+                <div class="left">
+                    <h1 class="headline">
+                        Predict your business's <br />
+                        cash flow in seconds
+                    </h1>
+                    <p class="lead">
+                        Upload a CSV to model your historical cash flow — then run
+                        <em>what-if</em> scenarios by adjusting categories and timing.
+                    </p>
+
+                    <div>
+                        <a href="#" class="input-btn plan-input-btn pd-8">
+                            Try for free
+                            <sl-icon name="rocket-takeoff" slot="prefix"></sl-icon>
+                        </a>
+                    </div>
+                </div>
+                <aside>
+                    <div class="mockup" id="demo">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <div class="description">
+                                <div style="font-weight:700">Next 30-day forecast</div>
+                                <div class="small">CSV import • Bank sync • 95% confidence interval</div>
+                            </div>
+                            <div>
+                                <a href="./../upload/upload.html" class="input-btn file-input-btn pd-8"><sl-icon name="upload"
+                                        slot="prefix"></sl-icon> Analyze CSV</a>
+                            </div>
+                        </div>
+
+                        <!-- Chart container - fixed height so it won't grow unexpectedly -->
+                        <div style="height:220px;margin-top:12px;">
+                            <canvas id="forecastChart" style="width:100%;height:100%;display:block;"></canvas>
+                        </div>
+
+                        <div
+                            style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px">
+                            <div class="small">Confidence band: 95% • Simulations: 2,000</div>
+                            <div class="small">Scenario: <strong>Conservative</strong></div>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+            <section id="product-highlights" class="product-highlights">
+                <h3>Product highlights</h3>
+                <div class="cards">
+                    <div class="card">
+                        <h4>What‑if scenarios</h4>
+                        <p class="muted-list">Change category sliders, add recurring events, compare shareable
+                            scenarios.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Probabilistic forecasts</h4>
+                        <p class="muted-list">Monte‑Carlo forecasts + confidence intervals — see best/worst case
+                            outcomes.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Collaboration & accountant mode</h4>
+                        <p class="muted-list">Share scenarios, annotate charts and invite accountants with
+                            role-based permissions.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Bank & accounting sync</h4>
+                        <p class="muted-list">Auto‑sync transactions with bank and accounting integrations.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Receivables & follow-ups</h4>
+                        <p class="muted-list">Invoice aging, reminders and collector playbooks to speed up cash
+                            collection.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Financing marketplace</h4>
+                        <p class="muted-list">Pre‑qualified partner offers and financing options based on your forecast.
+                        </p>
+                    </div>
+                </div>
+            </section>
+            <section id="pricing" style="margin-top:34px">
+                <h3 style="margin:0 0 12px">Pricing</h3>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                    <div class="small">Billing</div>
+                    <sl-toggle id="billingToggle" checked></sl-toggle>
+                    <div class="small">Monthly (switch for yearly)</div>
+                </div>
+
+                <div class="pricing">
+                    <div class="card">
+                        <div class="center">
+                            <div>
+                                <div style="font-weight:700">Starter</div>
+                                <div class="small">For freelancers & micro-businesses</div>
+                            </div>
+                            <div class="price" data-monthly="0" data-yearly="0">Free</div>
+                        </div>
+                        <div class="muted-list">
+                            <ul>
+                                <li>CSV imports</li>
+                                <li>Basic forecasts</li>
+                                <li>1 user</li>
+                            </ul>
+                        </div>
+                        <sl-button class="plan-input-btn input-btn">Get started</sl-button>
+                    </div>
+
+                    <div class="card">
+                        <div class="center">
+                            <div>
+                                <div style="font-weight:700">Growth</div>
+                                <div class="small">Small teams — recommended</div>
+                            </div>
+                            <div class="price" data-monthly="29" data-yearly="290">$29</div>
+                        </div>
+                        <div class="muted-list">
+                            <ul>
+                                <li>Bank & accounting sync</li>
+                                <li>What-if scenarios & category sliders</li>
+                                <li>3 users</li>
+                            </ul>
+                        </div><sl-button class="plan-input-btn input-btn">Get started</sl-button>
+                    </div>
+
+                    <div class="card">
+                        <div class="center">
+                            <div>
+                                <div style="font-weight:700">Pro</div>
+                                <div class="small">Advanced forecasting & finance ops</div>
+                            </div>
+                            <div class="price" data-monthly="99" data-yearly="990">$99</div>
+                        </div>
+                        <div class="muted-list">
+                            <ul>
+                                <li>Probabilistic forecasts & anomaly detection</li>
+                                <li>Receivables automation & playbooks</li>
+                                <li>Unlimited users + financing marketplace</li>
+                            </ul>
+                        </div><sl-button class="plan-input-btn input-btn">Get started</sl-button>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+    </div>
+
+    <footer>
+        Built by Alessio • FlowTrack • 🚀 Beta
+    </footer>
+
+    <script type="module" src="home/js/home.js"></script>
+
+</body>
+
+</html>

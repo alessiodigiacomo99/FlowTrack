@@ -1,0 +1,35 @@
+:root {
+    --bg: #ffffff;
+    --surface: #fbfdff;
+    --text: #0f1724;
+    --muted: #64748b;
+    --accent: #2563eb;
+    /* indigo blue accent */
+    --accent-2: #06b6d4;
+    /* teal supporting */
+    --glass: rgba(37, 99, 235, 0.06);
+    --radius: 12px;
+    --container: 1100px;
+    --shadow: 0 6px 20px rgba(15, 23, 36, 0.06);
+    --ligth-green: #10b981;
+    --dark-green: #065f46;
+    --blue: #2563eb;
+    --red: #dc2626;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none
+}
+
+.small {
+  font-size: 13px;
+  color: var(--muted)
+}

@@ -1,0 +1,248 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #fbfbf9;
+  color: #1f2937;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+section {
+  padding: 2rem 1rem;
+  max-width: 800px;
+  margin: auto;
+}
+
+h2 {
+  color: #111827;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.headline {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.lead {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+sl-button#downloadCsvBtn:hover::part(base) {
+  background-color: transparent;
+  border: 1px solid var(--ligth-green);
+  color: var(--ligth-green);
+  transition: all 0.1s ease;
+}
+
+.file-example-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid grey;
+  color: grey;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.file-example-btn:hover {
+  background-color: transparent;
+  border: 1px solid var(--dark-green);
+  color: var(--dark-green);
+  transition: all 0.1s ease;
+}
+
+.file-input-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid grey;
+  color: grey;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.file-input-btn:hover {
+  background-color: transparent;
+  border: 1px solid var(--ligth-green);
+  color: var(--ligth-green);
+  transition: all 0.1s ease;
+}
+
+.uploader {
+  margin-top: 50px;
+}
+
+.uploader,
+.adjustments,
+.forecast-chart {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  min-width: 80vw;
+}
+
+.adjustments label {
+  margin-right: 1rem;
+}
+
+.runway-box sl-alert[variant="success"]::part(base) {
+  background-color: rgba(16, 185, 129, 0.1);
+  /* transparent green */
+  color: #065f46;
+  transition: background-color 0.2s;
+}
+
+.runway-box sl-alert[variant="success"]::part(base):hover {
+  background-color: rgba(16, 185, 129, 0.2);
+}
+
+.runway-box sl-alert[variant="warning"]::part(base) {
+  background-color: rgba(239, 68, 68, 0.1);
+  /* transparent red */
+  color: #7f1d1d;
+  transition: background-color 0.2s;
+}
+
+.runway-box sl-alert[variant="warning"]::part(base):hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+pre {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  text-align: left;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.event-form {
+  margin-bottom: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.event-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.event-list li {
+  margin: 4px 0;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 4px;
+}
+
+.event-list button {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+}
+
+#adjustments,
+#forecast-chart {
+  display: none;
+}
+
+.event-form sl-input {
+  max-width: 200px;
+}
+
+input[type="file"] {
+  max-width: 200px;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  max-width: 25vw;
+}
+
+.rename-input {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px dashed transparent;
+  cursor: text;
+}
+
+.rename-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #f0f8ff;
+}
+
+.slider-group,
+.event-form {
+  padding: 10px 0;
+}
+
+.category-slider {
+  flex: 2;
+  appearance: none;
+  height: 6px;
+  background: #e2e8f0;
+  cursor: pointer;
+}
+
+.category-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.category-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.category-value {
+  width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hidden {
+  display: none;
+}
+
+.select-category {
+  margin-bottom: 20px;
+}
+
+footer {
+  text-align: center;
+  padding: 2rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}

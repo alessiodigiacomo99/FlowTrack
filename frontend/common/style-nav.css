@@ -1,0 +1,46 @@
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px
+}
+
+.logo {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    box-shadow: var(--shadow);
+    font-weight: 700
+}
+
+.brand .title {
+    font-weight: 700;
+    font-size: 16px
+}
+
+header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+}
+
+nav {
+    display: flex;
+    gap: 18px;
+    align-items: center
+}
+
+nav a {
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    transition: all 0.1s ease;
+}
