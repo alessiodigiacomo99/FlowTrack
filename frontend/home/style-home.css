@@ -22,6 +22,10 @@ main {
     padding: 0 32px;
 }
 
+.left {
+    max-width: 50vw;
+}
+
 .hero {
     display: grid;
     grid-template-columns: 1fr 420px;
@@ -62,7 +66,7 @@ main {
     max-width: 70%;
 }
 
-.pd-8{
+.pd-8 {
     padding: 8px;
 }
 
@@ -88,9 +92,96 @@ main {
     font-size: 15px
 }
 
-.product-highlights h3 {
+.product-highlights h3,
+#how h3 {
     margin: 0 0 12px;
 }
+
+/* Timeline / vertical flow */
+#how {
+    margin-top: 34px;
+}
+
+/* heading */
+#how h3 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* force cards into a single-column timeline (overrides grid if present) */
+#how .cards {
+    display: block;
+    position: relative;
+    padding-left: 48px;
+    /* room for the line + badges */
+    margin-top: 12px;
+    counter-reset: step;
+}
+
+/* thin vertical rule */
+#how .cards::before {
+    content: "";
+    position: absolute;
+    left: 24px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 2px;
+}
+
+/* each timeline item */
+#how .card {
+    position: relative;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border-radius: 6px;
+}
+
+/* numbered circular badge (minimal) */
+#how .card::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* text styles */
+#how .card h4 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#how .muted-list {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+/* small responsive tweak: tighten left gap on very small screens */
+@media (max-width: 420px) {
+    #how .cards {
+        padding-left: 42px;
+    }
+
+    #how .cards::before {
+        left: 20px;
+    }
+
+    .card::before {
+        left: 8px;
+        width: 18px;
+        height: 18px;
+        top: 10px;
+        font-size: 11px;
+    }
+}
+
 
 /* pricing */
 .pricing {
@@ -183,3 +274,6 @@ footer {
         display: none
     }
 }
+
+/* Site logo color using palette variable */
+.site-logo { color: var(--blue); font-weight: 700; letter-spacing: 0.6px; }

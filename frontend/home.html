@@ -20,7 +20,7 @@
     <div class="container">
         <header>
             <div class="brand">
-                <sl-icon name="graph-up-arrow" class="logo"></sl-icon>
+                <div class="logo site-logo" aria-hidden="true">FT</div>
                 <div>
                     <h1 class="title">FlowTrack</h1>
                     <div class="small">Predict, simulate and act</div>
@@ -42,16 +42,20 @@
                         cash flow in seconds
                     </h1>
                     <p class="lead">
-                        Upload a CSV to model your historical cash flow — then run
-                        <em>what-if</em> scenarios by adjusting categories and timing.
+                        Upload a CSV or paste a bank export. See next-month risk, run
+                        <em>what-if</em> scenarios, and get ranked actions that fix shortfalls — with one click to
+                        remind clients or mark implemented.
                     </p>
 
-                    <div>
+                    <div style="margin-top: -12px;">
                         <a href="#" class="input-btn plan-input-btn pd-8">
                             Try for free
                             <sl-icon name="rocket-takeoff" slot="prefix"></sl-icon>
                         </a>
                     </div>
+                    <p style="margin-top:14px; font-size: 15px;">Privacy-first: keep CSV workflow or opt into
+                        integrations when you’re ready.</p>
+
                 </div>
                 <aside>
                     <div class="mockup" id="demo">
@@ -61,8 +65,8 @@
                                 <div class="small">CSV import • Bank sync • 95% confidence interval</div>
                             </div>
                             <div>
-                                <a href="./../upload/upload.html" class="input-btn file-input-btn pd-8"><sl-icon name="upload"
-                                        slot="prefix"></sl-icon> Analyze CSV</a>
+                                <a href="./../upload/upload.html" class="input-btn file-input-btn pd-8"><sl-icon
+                                        name="upload" slot="prefix"></sl-icon> Analyze CSV</a>
                             </div>
                         </div>
 
@@ -80,7 +84,7 @@
                 </aside>
             </section>
             <section id="product-highlights" class="product-highlights">
-                <h3>Product highlights</h3>
+                <h3>Why FlowTrack?</h3>
                 <div class="cards">
                     <div class="card">
                         <h4>What‑if scenarios</h4>
@@ -113,6 +117,31 @@
                     </div>
                 </div>
             </section>
+            <section id="how" aria-labelledby="how-title" style="margin-top: 34px;">
+                <h3 id="how-title">How it works — 3 steps</h3>
+
+                <div class="cards" style="margin-top:12px">
+                    <div class="card">
+                        <h4>1. Upload a CSV</h4>
+                        <p class="muted-list">Or connect QuickBooks/Xero later. FlowTrack accepts standard bank exports
+                            (date, amount, category).</p>
+                    </div>
+
+                    <div class="card">
+                        <h4>2. See top recommendations</h4>
+                        <p class="muted-list">Get 3 ranked actions with estimated € impact (e.g., chase invoice #34 →
+                            +€3,400).</p>
+                    </div>
+
+                    <div class="card">
+                        <h4>3. Simulate & apply</h4>
+                        <p class="muted-list">Simulate before you act, send reminder templates, then mark implemented
+                            and watch the new forecast update.</p>
+                    </div>
+                </div>
+            </section>
+
+
             <section id="pricing" style="margin-top:34px">
                 <h3 style="margin:0 0 12px">Pricing</h3>
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -143,16 +172,16 @@
                     <div class="card">
                         <div class="center">
                             <div>
-                                <div style="font-weight:700">Growth</div>
+                                <div style="font-weight:700">Pro</div>
                                 <div class="small">Small teams — recommended</div>
                             </div>
                             <div class="price" data-monthly="29" data-yearly="290">$29</div>
                         </div>
                         <div class="muted-list">
                             <ul>
-                                <li>Bank & accounting sync</li>
-                                <li>What-if scenarios & category sliders</li>
-                                <li>3 users</li>
+                                <li>Probabilistic forecasts & anomaly detection</li>
+                                <li>Actionable recommendations</li>
+                                <li>3 Users</li>
                             </ul>
                         </div><sl-button class="plan-input-btn input-btn">Get started</sl-button>
                     </div>
@@ -160,15 +189,15 @@
                     <div class="card">
                         <div class="center">
                             <div>
-                                <div style="font-weight:700">Pro</div>
+                                <div style="font-weight:700">Business</div>
                                 <div class="small">Advanced forecasting & finance ops</div>
                             </div>
                             <div class="price" data-monthly="99" data-yearly="990">$99</div>
                         </div>
                         <div class="muted-list">
                             <ul>
-                                <li>Probabilistic forecasts & anomaly detection</li>
-                                <li>Receivables automation & playbooks</li>
+                                <li>Bank & accounting sync</li>
+                                <li>Priority support</li>
                                 <li>Unlimited users + financing marketplace</li>
                             </ul>
                         </div><sl-button class="plan-input-btn input-btn">Get started</sl-button>

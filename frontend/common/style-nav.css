@@ -4,14 +4,33 @@
     gap: 12px
 }
 
-.logo {
+/* .logo {
     display: inline-grid;
     place-items: center;
     width: 30px;
     height: 30px;
     box-shadow: var(--shadow);
     font-weight: 700
+} */
+
+.logo {
+    width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  font-size: 18px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--palette-2);
+
+  /* Gradient background */
+  background: linear-gradient(135deg, var(--palette-1), var(--palette-2));
 }
+
 
 .brand .title {
     font-weight: 700;
